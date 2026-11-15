@@ -350,5 +350,6 @@ export default function VideoStudio({ proxyUrl }: Props) {
         </div>
       )}
     </div>
-  );
-      }
+    );
+}
+      
