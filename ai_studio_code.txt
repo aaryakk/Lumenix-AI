@@ -1,0 +1,108 @@
+export interface GpuStatus {
+  online: boolean;
+  model?: string;
+  gpu?: string;
+  vramFreeGb?: number;
+  activeJobs?: number;
+  error?: string;
+}
+
+export interface ShotJobInput {
+  mode: 'text-to-video' | 'image-to-video';
+  prompt: string;
+  aspectRatio: '9:16' | '16:9' | '1:1';
+  frames: 49 | 73 | 97;
+  image?: string;
+}
+
+export interface StitchInput {
+  shotIds: string[];
+  transition: 'fade' | 'wipeleft' | 'slideup' | 'circleopen';
+  subtitles: string[];
+  voiceoverText?: string;
+  voiceoverAudioBase64?: string;
+  musicAudioBase64?: string;
+  aspectRatio: '9:16' | '16:9' | '1:1';
+}
+
+function cleanBase(proxyUrl: string) {
+  return (proxyUrl || import.meta.env.VITE_LUMENIX_PROXY_URL || '').trim().replace(/\/$/, '');
+}
+
+export async function checkGpuStatus(proxyUrl: string): Promise<GpuStatus> {
+  const base = cleanBase(proxyUrl);
+  if (!base) return { online: false, error: 'Set your Cloudflare Worker URL in Settings first.' };
+  try {
+    const res = await fetch(`${base}/video/status`);
+    return await res.json();
+  } catch {
+    return { online: false, error: 'Could not reach Cloudflare Worker.' };
+  }
+}
+
+export async function generateSingleShot(
+  proxyUrl: string,
+  input: ShotJobInput,
+  onProgress: (msg: string) => void
+): Promise<{ success: boolean; jobId?: string; videoUrl?: string; lastFrame?: string; error?: string }> {
+  const base = cleanBase(proxyUrl);
+  if (!base) return { success: false, error: 'Cloudflare Worker URL missing in Settings.' };
+
+  try {
+    onProgress('Sending shot to free GPU queue...');
+    const startRes = await fetch(`${base}/video/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    const startData = await startRes.json();
+    if (!startRes.ok || !startData.jobId) {
+      return { success: false, error: startData.error || 'GPU notebook offline or rejected request.' };
+    }
+
+    const jobId = startData.jobId;
+    for (let i = 0; i < 90; i++) {
+      await new Promise((r) => setTimeout(r, 3000));
+      const pollRes = await fetch(`${base}/video/job?id=${encodeURIComponent(jobId)}`);
+      const pollData = await pollRes.json();
+      if (!pollRes.ok) return { success: false, error: pollData.detail || pollData.error || 'Polling failed.' };
+      if (pollData.status === 'failed') return { success: false, error: pollData.error || 'GPU rendering failed.' };
+      if (pollData.status === 'completed') {
+        return {
+          success: true,
+          jobId,
+          videoUrl: `${base}/video/file?id=${encodeURIComponent(jobId)}`,
+          lastFrame: pollData.lastFrame,
+        };
+      }
+      onProgress(pollData.progress || `Rendering on GPU (${i * 3}s elapsed)...`);
+    }
+    return { success: false, error: 'Shot generation timed out after 4.5 minutes.' };
+  } catch {
+    return { success: false, error: 'Connection lost. Check if Colab/Kaggle tab is still running.' };
+  }
+}
+
+export async function stitchFinalMp4(
+  proxyUrl: string,
+  input: StitchInput
+): Promise<{ success: boolean; videoUrl?: string; error?: string }> {
+  const base = cleanBase(proxyUrl);
+  try {
+    const res = await fetch(`${base}/video/stitch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.finalId) {
+      return { success: false, error: data.detail || data.error || 'Failed to stitch MP4 shots.' };
+    }
+    return {
+      success: true,
+      videoUrl: `${base}/video/file?id=${encodeURIComponent(data.finalId)}`,
+    };
+  } catch {
+    return { success: false, error: 'Network error while stitching final MP4.' };
+  }
+}
