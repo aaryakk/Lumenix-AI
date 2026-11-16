@@ -572,9 +572,8 @@ def start_cloudflare_tunnel():
         )
         for line in tunnel_process.stdout:
             print("[CLOUDFLARE]", line.rstrip())
-            match = re.search(r"https://[a-zA-Z0-9-]+\\.trycloudflare\\.com", line)
-            if match:
-                print("\\nLUMENIX PUBLIC API URL:", match.group(0), "\\n")
+            match = re.search(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", line)
+            print("\nLUMENIX PUBLIC API URL:", match.group(0), "\n")
     except Exception as exc:
         print("Cloudflare Tunnel error:", exc)
 
