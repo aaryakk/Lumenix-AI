@@ -16,5 +16,6 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false
   },
-  "include": ["src"]
+  "include": ["src/App.tsx", "src/main.tsx", "src/components/**/*.tsx"],
+  "exclude": ["src/src", "node_modules", "dist"]
 }
