@@ -12,7 +12,7 @@ interface ChatResponse {
 }
 
 const API_URL =
-  'https://dose-continuing-extras-fourth.trycloudflare.com';
+  'https://specifications-circular-according-charms.trycloudflare.com';
 
 const ChatInterface: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
