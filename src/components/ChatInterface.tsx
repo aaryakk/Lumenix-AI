@@ -7,12 +7,13 @@ interface Message {
 }
 
 interface ChatResponse {
-  status: string;
-  answer: string;
+  status?: string;
+  answer?: string;
 }
 
-const API_URL =
-  'https://specifications-circular-according-charms.trycloudflare.com';
+const API_URL = (
+  import.meta.env.VITE_LUMENIX_CHAT_API_URL || ''
+).trim().replace(/\/$/, '');
 
 const ChatInterface: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -24,6 +25,11 @@ const ChatInterface: React.FC = () => {
     const message = input.trim();
 
     if (!message || loading) return;
+
+    if (!API_URL) {
+      setError('Chat backend is not configured yet.');
+      return;
+    }
 
     setInput('');
     setError('');
@@ -54,19 +60,18 @@ const ChatInterface: React.FC = () => {
       const data: ChatResponse = await response.json();
 
       if (!data.answer) {
-        throw new Error('AI response not received');
+        throw new Error('AI response not received.');
       }
 
       setMessages(prev => [
         ...prev,
-        { role: 'assistant', content: data.answer }
+        { role: 'assistant', content: data.answer! }
       ]);
-
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : 'Something went wrong'
+          : 'Something went wrong.'
       );
     } finally {
       setLoading(false);
