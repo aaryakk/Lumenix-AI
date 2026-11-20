@@ -3,6 +3,10 @@ import React from 'react';
 import ChatInterface from './components/ChatInterface';
 import VideoStudio from './components/VideoStudio';
 
+const VIDEO_BACKEND_URL = (
+  import.meta.env.VITE_LUMENIX_PROXY_URL || ''
+).trim().replace(/\/$/, '');
+
 const App: React.FC = () => {
   return (
     <div className="app">
@@ -13,7 +17,7 @@ const App: React.FC = () => {
 
       <main>
         <ChatInterface />
-        <VideoStudio proxyUrl="" />
+        <VideoStudio proxyUrl={VIDEO_BACKEND_URL} />
       </main>
     </div>
   );
